@@ -16,6 +16,17 @@ jobs:
     environment:
       name: publish
     steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        if: runner.os == 'Linux'
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
       - name: Checkout
         uses: actions/checkout@v4
       - name: Get git tag
