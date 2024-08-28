@@ -172,6 +172,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                             "lg": "http", "bdy": body.decode()})
 
         passed = 1
+        content = []
         try:
             response = await call_next(request)
             # GETTING THE ASYNC RESPONSE BODY NEEDS WORKAROUNDS
