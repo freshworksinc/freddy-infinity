@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2023-now michaelfeil
+
 import json
 import logging
 import re
@@ -219,6 +222,8 @@ logger = logging.getLogger()
 
 
 class UVICORN_LOG_LEVELS(Enum):
+    """Re-exports the uvicorn log levels for type hinting and usage."""
+
     critical = "critical"
     error = "error"
     warning = "warning"

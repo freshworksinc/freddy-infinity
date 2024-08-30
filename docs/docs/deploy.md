@@ -27,7 +27,7 @@ A deployment example for usage within are located at repo, including a Github Ac
 
 The example is located at [michaelfeil/infinity/tree/main/infra/modal](https://github.com/michaelfeil/infinity/tree/c84b15acc35d02005e6f69080a5ed7b0e23d0019/infra/modal).
 
-Modal has sponsored compute credits for a GPU-powered endpoint at [infinity.modal.michaelfeil.eu](https://infinity.modal.michaelfeil.eu), which is freely available.
+The GPU and Modal-powered endpoint via this Github Pipeline is free to try out at  [infinity.modal.michaelfeil.eu](https://infinity.modal.michaelfeil.eu), which is available at no cost.
 
 ## Runpod.io - Serverless
 There is a dedicated guide on how deploy via Runpod Serverless. 
@@ -38,6 +38,7 @@ Find out how to deploy it via this Repo:
 Example repo for deployment via Bento: https://github.com/bentoml/BentoInfinity
 
 ## dstack
+
 dstack allows you to provision a VM instance on the cloud of your choice.
 Write a service configuration file as below for the deployment of `BAAI/bge-small-en-v1.5` model wrapped in Infinity.
 
@@ -46,17 +47,20 @@ type: service
 
 image: michaelf34/infinity:latest
 env:
-  - MODEL_ID=BAAI/bge-small-en-v1.5
+  - INFINITY_MODEL_ID=BAAI/bge-small-en-v1.5;BAAI/bge-reranker-base;
+  - INFINITY_PORT=80
 commands:
-  - infinity_emb v2 --model-id $MODEL_ID --port 80
+  - infinity_emb v2
 port: 80
 ```
 
-To deploy the service, execute the following dstack command. A prompt will guide you through selecting the desired VM instance for deploying Infinity.
+Then, simply run the following dstack command. After this, a prompt will appear to let you choose which VM instance to deploy the Infinity.
 
 ```shell
 dstack run . -f infinity/serve.dstack.yml --gpu 16GB
 ```
+
+For more detailed tutorial and general information about dstack, visit the [official doc](https://dstack.ai/examples/infinity/#run-the-configuration).
 
 
 ## Docker with offline mode / models with custom pip packages
