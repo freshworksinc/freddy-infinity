@@ -28,7 +28,7 @@ jobs:
       name: publish
     steps:
       - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
+        uses: ./.github/actions/disk_cleanup.yaml
         if: runner.os == 'Linux'
         with:
           tool-cache: false
