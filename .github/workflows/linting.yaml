@@ -38,7 +38,7 @@ jobs:
           - "3.12"
     steps:
       - name: Free Disk Space
-        uses: ./.github/actions/disk_cleanup.yaml
+        uses: "./.github/actions/disk_cleanup"
         if: runner.os == 'Linux'
         with:
           tool-cache: false

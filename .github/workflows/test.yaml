@@ -57,7 +57,7 @@ jobs:
     name: Py${{ matrix.python-version }}-${{ matrix.os }}-${{ matrix.coverage_tests }}
     steps:
       - name: Free Disk Space
-        uses: ./.github/actions/disk_cleanup.yaml
+        uses: "./.github/actions/disk_cleanup"
         if: runner.os == 'Linux'
         with:
           tool-cache: false
