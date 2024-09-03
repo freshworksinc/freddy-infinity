@@ -25,7 +25,11 @@ from infinity_emb.fastapi_schemas.pymodels import (
     RerankInput,
     ReRankResult,
 )
-from infinity_emb.log_handler import UVICORN_LOG_LEVELS, logger, StructuredLoggingMiddleware
+from infinity_emb.log_handler import (
+    UVICORN_LOG_LEVELS,
+    logger,
+    StructuredLoggingMiddleware,
+)
 from infinity_emb.primitives import (
     Device,
     Dtype,

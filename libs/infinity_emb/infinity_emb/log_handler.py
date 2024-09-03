@@ -129,7 +129,6 @@ class StructuredLogging:
 # https://stackoverflow.com/questions/71525132/how-to-write-a-custom-fastapi-middleware-class
 # Pure ASGI middleware https://www.starlette.io/middleware/#limitations is not used because we don't need the features that it provides
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
-
     def __init__(self, app):
         super().__init__(app)
 
@@ -142,12 +141,14 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
     def log_response_info(path, response, content, passed):
         response_info = {
             "st": response.status_code,
-            "hdr": json.dumps({k.decode(): v.decode() for k, v in response.raw_headers}),
+            "hdr": json.dumps(
+                {k.decode(): v.decode() for k, v in response.raw_headers}
+            ),
             "path": path,
             "lg": "http",
             "pass": passed,
-            "content": (b''.join(content)).decode(),
-            "d": int(1000 * (perf_counter() - StructuredLogging.request_time.get()))
+            "content": (b"".join(content)).decode(),
+            "d": int(1000 * (perf_counter() - StructuredLogging.request_time.get())),
         }
         if response.status_code >= 400:
             logging.error("RESPONSE", extra=response_info)
@@ -156,8 +157,10 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         StructuredLogging.request_time.set(perf_counter())
-        request_id = request.headers.get('request-id', request.headers.get('x-request-id', str(uuid4())))
-        account_id = request.headers.get('account-id', "null")
+        request_id = request.headers.get(
+            "request-id", request.headers.get("x-request-id", str(uuid4()))
+        )
+        account_id = request.headers.get("account-id", "null")
         trace_parent = request.headers.get("traceparent", "-")
 
         StructuredLogging.request_id.set(request_id)
@@ -170,9 +173,16 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
 
         processed_headers = json.dumps(dict(request.headers.items()))
         body = await request.body()
-        logging.info("REQUEST",
-                     extra={"m": request.method, "path": request.url.path, "hdr": processed_headers,
-                            "lg": "http", "bdy": body.decode()})
+        logging.info(
+            "REQUEST",
+            extra={
+                "m": request.method,
+                "path": request.url.path,
+                "hdr": processed_headers,
+                "lg": "http",
+                "bdy": body.decode(),
+            },
+        )
 
         passed = 1
         content = []
