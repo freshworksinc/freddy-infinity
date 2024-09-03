@@ -17,26 +17,31 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import StreamingResponse
 
 
+def sla_breached(duration):
+    return duration > 3000
+
+
 class StructuredLogging:
     request_time = ContextVar("request_time", default=perf_counter())
     account_id = ContextVar("account_id", default="null")
     request_id = ContextVar("request_id", default="No request ID")
     trace_parent = ContextVar("trace_parent", default="-")
+    controller = ContextVar("controller", default="-")
 
     _config_dict = {
         "ts": "%(timestamp_ms)d",
         "type": "app",
         "svc": "freddy-infinity",
         "lvl": "%(levelname)s",
-        "act": "%(pathname)s:%(funcName)s:%(lineno)d",
+        "act": "%(controller)s",
         "a_id": "%(account_id)s",
         "r_id": "%(request_id)s",
-        "p": "freddy-freshservice",
+        "p": "freddy-fs",
         "tp": "%(trace_parent)s",
         "d": "%(time_elapsed)f",
         "thread_id": "%(thread)s",
         "trace_id": "%(otelTraceID)s",
-        "dur": "%(time_elapsed)f",
+        "span_id": "%(otelSpanID)s",
         "msg": "%(message)s",
     }
 
@@ -139,6 +144,9 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def log_response_info(path, response, content, passed):
+        duration = int(1000 * (perf_counter() - StructuredLogging.request_time.get()))
+        if sla_breached(duration):
+            passed = 0
         response_info = {
             "st": response.status_code,
             "hdr": json.dumps(
@@ -147,7 +155,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             "path": path,
             "lg": "http",
             "pass": passed,
-            "content": (b"".join(content)).decode(),
+            "body": (b"".join(content)).decode(),
             "d": int(1000 * (perf_counter() - StructuredLogging.request_time.get())),
         }
         if response.status_code >= 400:
@@ -169,7 +177,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
 
         # for every successful non-health request
         if not any(map(request.url.path.__contains__, ("health", "metrics"))):
-            logging.info("SKIP", extra={"lg": "delight", "path": request.url.path})
+            logging.info(None, extra={"lg": "delight", "path": request.url.path})
 
         processed_headers = json.dumps(dict(request.headers.items()))
         body = await request.body()
@@ -180,7 +188,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 "path": request.url.path,
                 "hdr": processed_headers,
                 "lg": "http",
-                "bdy": body.decode(),
+                "body": body.decode(),
             },
         )
 
