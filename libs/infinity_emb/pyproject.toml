@@ -16,6 +16,7 @@ python = ">=3.9,<4"
 numpy = ">=1.20.0,<2"
 huggingface_hub="*"
 # logging
+rich = {version = "^13", optional=true}
 # webserver-only
 fastapi = {version = ">=0.103.2", optional=true}
 orjson = {version = ">=3.9.8,!=3.10.0", optional=true} 
