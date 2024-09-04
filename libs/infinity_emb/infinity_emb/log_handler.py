@@ -26,15 +26,14 @@ class StructuredLogging:
     account_id = ContextVar("account_id", default="null")
     request_id = ContextVar("request_id", default="No request ID")
     trace_parent = ContextVar("trace_parent", default="-")
-    controller = ContextVar("controller", default="-")
+    controller = ContextVar("controller", default=["-"])  # needed for implementation
 
     _config_dict = {
         "ts": "%(timestamp_ms)d",
         "type": "app",
         "svc": "freddy-infinity",
         "lvl": "%(levelname)s",
-        # "act": "%(controller)s",
-        "act": "temp",
+        "act": "%(controller)s",
         "a_id": "%(account_id)s",
         "r_id": "%(request_id)s",
         "p": "freddy-fs",
@@ -74,6 +73,9 @@ class StructuredLogging:
             record.timestamp_ms = int(time() * 1000)
             record.account_id = sanitize_string(cls.account_id.get())
             record.request_id = sanitize_string(cls.request_id.get())
+            record.controller = sanitize_string(
+                cls.controller.get()[0]
+            )  # first element of list
             record.trace_parent = sanitize_string(cls.trace_parent.get())
             record.time_elapsed = perf_counter() - cls.request_time.get()
             record.msg = sanitize_string(record.msg)
@@ -132,8 +134,42 @@ class StructuredLogging:
         logging.Logger.makeRecord = new_make_record
 
 
-# https://stackoverflow.com/questions/71525132/how-to-write-a-custom-fastapi-middleware-class
-# Pure ASGI middleware https://www.starlette.io/middleware/#limitations is not used because we don't need the features that it provides
+class ControllerFieldHelper:
+    """Helper class to log act (controller) field"""
+
+    # Note - ContextVar contains list with single element which is mutated
+    # This helps persist the object beyond its 'official' context, allowing simpler implementation
+    _request_log_fn = ContextVar(
+        "_request_log_fn", default=[lambda: logging.critical("REQUEST LOG FAILURE")]
+    )
+
+    @classmethod
+    def modify_fastapi_run_endpoint_function(cls):
+        """to log act, we override fastapi's routing.run_endpoint_function"""
+        from fastapi import routing
+
+        old_run_endpoint_function = routing.run_endpoint_function
+
+        async def new_run_endpoint_function(**kwargs):
+            StructuredLogging.controller.get()[0] = kwargs["dependant"].call.__name__
+            cls._request_log_fn.get()[0]()
+            cls._request_log_fn.get()[0] = lambda: None
+            return await old_run_endpoint_function(**kwargs)
+
+        routing.run_endpoint_function = new_run_endpoint_function
+
+    @classmethod
+    def log_when_controller_found(cls, fn):
+        StructuredLogging.controller.set(["-"])
+        cls._request_log_fn.set([fn])
+
+    @classmethod
+    def log_if_controller_not_found(cls):
+        cls._request_log_fn.get()[0]()
+
+
+# https://stackoverflow.com/questions/71525132/how-to-write-a-custom-fastapi-middleware-class Pure ASGI middleware
+# https://www.starlette.io/middleware/#limitations is not used because we don't need the features that it provides
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
@@ -176,41 +212,43 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         StructuredLogging.account_id.set(account_id)
         StructuredLogging.trace_parent.set(trace_parent)
 
-        # for every successful non-health request
-        if not any(map(request.url.path.__contains__, ("health", "metrics"))):
-            logging.info(None, extra={"lg": "delight", "path": request.url.path})
-
         processed_headers = json.dumps(dict(request.headers.items()))
         body = await request.body()
-        logging.info(
-            "REQUEST",
-            extra={
-                "m": request.method,
-                "path": request.url.path,
-                "hdr": processed_headers,
-                "lg": "http",
-                "body": body.decode(),
-            },
-        )
 
+        ControllerFieldHelper.log_when_controller_found(
+            lambda: logging.info(
+                "REQUEST",
+                extra={
+                    "m": request.method,
+                    "path": request.url.path,
+                    "hdr": processed_headers,
+                    "body": body,
+                    "lg": "http",
+                },
+            ),
+        )
         passed = 1
         content = []
         try:
             response = await call_next(request)
+            ControllerFieldHelper.log_if_controller_not_found()
             # GETTING THE ASYNC RESPONSE BODY NEEDS WORKAROUNDS
             content = [gen async for gen in response.body_iterator]
             response.body_iterator = self.list_to_async_iterator(content)
         except HTTPException as http_exc:
+            ControllerFieldHelper.log_if_controller_not_found()
             logging.error("HTTPException occurred", exc_info=http_exc)
             error_msg_422 = f"422 Unprocessable Entity: {http_exc.detail}".encode()
             response = StreamingResponse(iter((error_msg_422,)), status_code=422)
             passed = 0
         except RuntimeError as runtime_exc:
+            ControllerFieldHelper.log_if_controller_not_found()
             logging.critical("RuntimeError occurred", exc_info=runtime_exc)
             error_msg_500 = f"500 Internal Server Error: {runtime_exc}".encode()
             response = StreamingResponse(iter((error_msg_500,)), status_code=500)
             passed = 0
         except Exception as e:
+            ControllerFieldHelper.log_if_controller_not_found()
             logging.critical("Failure occurred in endpoint", exc_info=e)
             error_msg_5xx = b"500 internal server error due to: " + str(e).encode()
             response = StreamingResponse(iter((error_msg_5xx,)), status_code=500)
@@ -218,9 +256,14 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
 
         self.log_response_info(request.url.path, response, content, passed)
 
+        # for every successful non-health request
+        if not any(map(request.url.path.__contains__, ("health", "metrics"))):
+            logging.info(None, extra={"lg": "delight", "path": request.url.path})
+
         return response
 
 
+ControllerFieldHelper.modify_fastapi_run_endpoint_function()
 StructuredLogging.modify_logging()
 
 LOG_LEVELS: dict[str, int] = {
