@@ -152,8 +152,8 @@ class ControllerFieldHelper:
 
         async def new_run_endpoint_function(**kwargs):
             StructuredLogging.controller.get()[0] = kwargs[
-                "dependant"
-            ].call.__name__  # noqa
+                "dependant"  # codespell:ignore
+            ].call.__name__
             cls._request_log_fn.get()[0]()
             cls._request_log_fn.get()[0] = lambda: None
             return await old_run_endpoint_function(**kwargs)
