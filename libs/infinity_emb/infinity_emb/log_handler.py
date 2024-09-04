@@ -151,7 +151,7 @@ class ControllerFieldHelper:
         old_run_endpoint_function = routing.run_endpoint_function
 
         async def new_run_endpoint_function(**kwargs):
-            StructuredLogging.controller.get()[0] = kwargs["dependant"].call.__name__
+            StructuredLogging.controller.get()[0] = kwargs["dependant"].call.__name__ # noqa
             cls._request_log_fn.get()[0]()
             cls._request_log_fn.get()[0] = lambda: None
             return await old_run_endpoint_function(**kwargs)
