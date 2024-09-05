@@ -38,7 +38,6 @@ class StructuredLogging:
         "r_id": "%(request_id)s",
         "p": "freddy-fs",
         "tp": "%(trace_parent)s",
-        "d": "%(time_elapsed)f",
         "thread_id": "%(thread)s",
         "trace_id": "%(otelTraceID)s",
         "span_id": "%(otelSpanID)s",
@@ -182,8 +181,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             yield part
 
     @staticmethod
-    def log_response_info(path, response, content, passed):
-        duration = int(1000 * (perf_counter() - StructuredLogging.request_time.get()))
+    def log_response_info(path, response, content, passed, duration):
         if sla_breached(duration):
             passed = 0
         response_info = {
@@ -195,7 +193,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             "lg": "http",
             "pass": passed,
             "body": (b"".join(content)).decode(),
-            "d": int(1000 * (perf_counter() - StructuredLogging.request_time.get())),
+            "d": duration,
         }
         if response.status_code >= 400:
             logging.error("RESPONSE", extra=response_info)
@@ -256,11 +254,14 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             response = StreamingResponse(iter((error_msg_5xx,)), status_code=500)
             passed = 0
 
-        self.log_response_info(request.url.path, response, content, passed)
+        duration = int(1000 * (perf_counter() - StructuredLogging.request_time.get()))
+        self.log_response_info(request.url.path, response, content, passed, duration)
 
         # for every successful non-health request
         if not any(map(request.url.path.__contains__, ("health", "metrics"))):
-            logging.info(None, extra={"lg": "delight", "path": request.url.path})
+            logging.info(
+                None, extra={"lg": "delight", "d": duration, "path": request.url.path}
+            )
 
         return response
 
