@@ -38,7 +38,7 @@ class StructuredLogging:
         "r_id": "%(request_id)s",
         "p": "freddy-fs",
         "tp": "%(trace_parent)s",
-        "thread_id": "%(thread)s",
+        "td": "%(thread)s",
         "trace_id": "%(otelTraceID)s",
         "span_id": "%(otelSpanID)s",
         "msg": "%(message)s",
