@@ -204,7 +204,8 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         # for every successful non-health request
         if not any(map(request.url.path.__contains__, ("health", "metrics"))):
             logging.info(
-                None, extra={
+                None,
+                extra={
                     "st": response.status_code,
                     "hdr": json.dumps(
                         {k.decode(): v.decode() for k, v in response.raw_headers}
@@ -214,7 +215,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                     "pass": passed,
                     "d": duration,
                     "m": request.method,
-                }
+                },
             )
 
     async def dispatch(self, request: Request, call_next):
