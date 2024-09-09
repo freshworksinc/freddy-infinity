@@ -24,9 +24,9 @@ def sla_breached(duration):
 class StructuredLogging:
     request_time = ContextVar("request_time", default=perf_counter())
     account_id = ContextVar("account_id", default="null")
-    request_id = ContextVar("request_id", default="No request ID")
-    trace_parent = ContextVar("trace_parent", default="-")
-    controller = ContextVar("controller", default=["-"])  # needed for implementation
+    request_id = ContextVar("request_id", default="null")
+    trace_parent = ContextVar("trace_parent", default="null")
+    controller = ContextVar("controller", default=["null"])  # needed for implementation
 
     _config_dict = {
         "ts": "%(timestamp_ms)d",
