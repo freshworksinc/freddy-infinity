@@ -181,7 +181,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             yield part
 
     @staticmethod
-    def log_response_info(path, response, content, passed, duration):
+    def log_response_info(request, response, content, passed, duration):
         if sla_breached(duration):
             passed = 0
         response_info = {
@@ -189,16 +189,33 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             "hdr": json.dumps(
                 {k.decode(): v.decode() for k, v in response.raw_headers}
             ),
-            "path": path,
+            "path": request.url.path,
             "lg": "http",
             "pass": passed,
             "body": (b"".join(content)).decode(),
             "d": duration,
+            "m": request.method,
         }
         if response.status_code >= 400:
             logging.error("RESPONSE", extra=response_info)
         else:
             logging.info("RESPONSE", extra=response_info)
+
+        # for every successful non-health request
+        if not any(map(request.url.path.__contains__, ("health", "metrics"))):
+            logging.info(
+                None, extra={
+                    "st": response.status_code,
+                    "hdr": json.dumps(
+                        {k.decode(): v.decode() for k, v in response.raw_headers}
+                    ),
+                    "path": request.url.path,
+                    "lg": "delight",
+                    "pass": passed,
+                    "d": duration,
+                    "m": request.method,
+                }
+            )
 
     async def dispatch(self, request: Request, call_next):
         StructuredLogging.request_time.set(perf_counter())
@@ -255,13 +272,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
             passed = 0
 
         duration = int(1000 * (perf_counter() - StructuredLogging.request_time.get()))
-        self.log_response_info(request.url.path, response, content, passed, duration)
-
-        # for every successful non-health request
-        if not any(map(request.url.path.__contains__, ("health", "metrics"))):
-            logging.info(
-                None, extra={"lg": "delight", "d": duration, "path": request.url.path}
-            )
+        self.log_response_info(request, response, content, passed, duration)
 
         return response
 
