@@ -207,9 +207,6 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 None,
                 extra={
                     "st": response.status_code,
-                    "hdr": json.dumps(
-                        {k.decode(): v.decode() for k, v in response.raw_headers}
-                    ),
                     "path": request.url.path,
                     "lg": "delight",
                     "pass": passed,
