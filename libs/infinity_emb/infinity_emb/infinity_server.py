@@ -25,11 +25,7 @@ from infinity_emb.fastapi_schemas.pymodels import (
     RerankInput,
     ReRankResult,
 )
-from infinity_emb.log_handler import (
-    UVICORN_LOG_LEVELS,
-    logger,
-    StructuredLoggingMiddleware,
-)
+from infinity_emb.log_handler import UVICORN_LOG_LEVELS, logger
 from infinity_emb.primitives import (
     Device,
     Dtype,
@@ -133,7 +129,6 @@ def create_server(
 
     instrumentator = Instrumentator().instrument(app)
     app.add_exception_handler(errors.OpenAIException, errors.openai_exception_handler)
-    app.add_middleware(StructuredLoggingMiddleware)
 
     @app.get("/health", operation_id="health", response_class=responses.ORJSONResponse)
     async def _health() -> dict[str, float]:
@@ -225,13 +220,13 @@ def create_server(
             if isinstance(data.input, str):
                 data.input = [data.input]
 
-            logger.info("[📝] Received request with %s inputs ", len(data.input))
+            logger.debug("[📝] Received request with %s inputs ", len(data.input))
             start = time.perf_counter()
 
             embedding, usage = await engine.embed(sentences=data.input)
 
             duration = (time.perf_counter() - start) * 1000
-            logger.info("[✅] Done in %s ms", duration)
+            logger.debug("[✅] Done in %s ms", duration)
 
             return OpenAIEmbeddingResult.to_embeddings_response(
                 embeddings=embedding,
